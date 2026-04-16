@@ -42,4 +42,3 @@ contents.
 
 - **`CLAUDE.md`** — full instructions for Claude (all three phases)
 - **`check_dirty.sh`** — classifies `~/dev` items as git-clean/git-dirty/non-git
-- **`review_action.sh`** — moves items from `.review/` to `.delete/` or `.archive/`

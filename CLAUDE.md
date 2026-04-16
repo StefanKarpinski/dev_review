@@ -269,20 +269,17 @@ Only treat the response as a menu choice if it matches one of the valid choices
 Anything else is a freeform question or instruction — handle it normally, then
 re-present the choice menu afterward.
 
-Handle the user's choice using `dev_review/review_action.sh`:
-
 **After every action that moves an item, keep the NOTES.md files in sync:**
-- Remove the item's entry from `~/.review/NOTES.md`
+- Remove the item's entry from `.review/NOTES.md`
 - Add an entry to the destination's NOTES.md:
-  - `~/.delete/NOTES.md` for delete
-  - `~/.archive/NOTES.md` for archive
+  - `.delete/NOTES.md` for delete
+  - `.archive/NOTES.md` for archive
   - `~/dev/NOTES.md` for keep
 
-- **delete:** Move to `~/dev/.delete/` and log the decision.
+- **delete:** Move to `~/dev/.delete/` and update NOTES.md files.
   ```
-  dev_review/review_action.sh delete dirname "approved by user"
+  mv ~/dev/.review/dirname ~/dev/.delete/
   ```
-  Then remove from `.review/NOTES.md` and add a terse line to `.delete/NOTES.md`.
 
 - **edit:** Open in VS Code with the repo folder plus all dirty files as tabs,
   then wait for it to close, then ask again.
@@ -317,18 +314,17 @@ Handle the user's choice using `dev_review/review_action.sh`:
   end tell'
   ```
 
-- **keep:** Move back to `~/dev/` and add an entry to `~/dev/NOTES.md`.
+- **keep:** Move back to `~/dev/` and update NOTES.md files.
   ```
   mv ~/dev/.review/dirname ~/dev/
   ```
-  Then remove from `.review/NOTES.md` and append to `~/dev/NOTES.md`:
+  Remove from `.review/NOTES.md` and append to `~/dev/NOTES.md`:
   `- \`dirname/\` — [one-line reason for keeping]`
 
-- **archive:** Move to `~/dev/.archive/` for long-term storage.
+- **archive:** Move to `~/dev/.archive/` and update NOTES.md files.
   ```
-  dev_review/review_action.sh archive dirname "archived by user"
+  mv ~/dev/.review/dirname ~/dev/.archive/
   ```
-  Then remove from `.review/NOTES.md` and add a terse line to `.archive/NOTES.md`.
 
 - **next:** Leave it in `.review/` and move on. No action needed.
 
