@@ -95,19 +95,22 @@ cd ~/dev
 # Create target directories
 mkdir -p .delete .review
 
+# Idempotent move: skip items that no longer exist (already moved or removed)
+move() { [ -e "$1" ] && mv -n "$1" "$2"; }
+
 # --- Items proposed for deletion ---
-mv "item1" .delete/
-mv "item2" .delete/
+move "item1" .delete/
+move "item2" .delete/
 # ... etc
 
 # --- Items that need review ---
-mv "item3" .review/
-mv "item4" .review/
+move "item3" .review/
+move "item4" .review/
 # ... etc
 ```
 
 Rules for the script:
-- Only `mv` commands (plus mkdir and cd at the top)
+- Use the `move` helper for all moves (not bare `mv`)
 - Always quote item names
 - Add a brief comment before groups explaining why
   (e.g. `# Third-party clean clones`)
