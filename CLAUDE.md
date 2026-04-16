@@ -33,6 +33,8 @@ For each directory (and any loose files like `.tar.gz`), determine the action:
 - Recently active (commits or meaningful file changes in the last ~12 months)
 - The `dev_review/` directory itself — never move or delete this
 - `CLAUDE.md` symlink — never move or delete this
+- Always keep regardless of activity: `julia`, `juliaup`, `karpinski.org`,
+  `julialang.org`
 
 #### MOVE TO `.delete/`
 
@@ -65,6 +67,12 @@ All of these conditions must be met:
   one can go to .delete/ if clean. However, you should check if one of them is a
   git worktree of the other; if so, deleting one of them could break the other.
   In that case, special action may need to be taken.
+- **`Dyad/` directory:** This is a collection of repos, not a single project.
+  Treat each subdirectory inside `Dyad/` as if it were a top-level item and
+  classify it individually. When moving, use `move "Dyad/subdir" .delete/` or
+  `move "Dyad/subdir" .review/` — it's fine to drop the `Dyad/` prefix (the
+  subdirectory lands directly in `.delete/` or `.review/`). If all subdirectories
+  are moved out, delete the empty `Dyad/` directory too.
 
 ### Step 3: Investigate dirty repos
 
@@ -169,13 +177,56 @@ files into them immediately. The cleanup.sh script's `mkdir -p` is harmless if
 they already exist. This way the notes are in place before the user runs the
 script and starts moving items in.
 
+### Step 6: Generate `NOTES.md`
+
+Write `~/dev/NOTES.md` with one line per item that is being **kept** in place
+(i.e. not moved to `.delete/` or `.review/`). Each line should give the reason
+it's being kept. Format:
+
+```markdown
+# Kept Items
+
+- `dirname/` — active: last commit 2026-04-13, on branch sk/feature
+- `other/` — active: JuliaComputing work repo, last commit 2025-09-23
+- `dev_review/` — cleanup tooling (never move)
+```
+
+This serves as both documentation and a completeness check (see Step 7).
+
+### Step 7: Verify completeness
+
+After generating all outputs, verify that **every item** in `~/dev` is accounted
+for in exactly one of:
+
+- `cleanup.sh` (moved to `.delete/` or `.review/`)
+- `NOTES.md` (kept in place)
+
+To verify, run:
+
+```bash
+# Items in ~/dev (excluding hidden dirs and the CLAUDE.md symlink)
+ls -1 ~/dev | grep -v '^\.' | sort > /tmp/dev_all.txt
+
+# Items accounted for in cleanup.sh and NOTES.md
+grep -oP '(?<=move ")[^"]+' ~/dev/cleanup.sh | sort > /tmp/dev_moved.txt
+grep -oP '(?<=^- `)[^`]+(?=/?`)' ~/dev/NOTES.md | sort > /tmp/dev_kept.txt
+sort -u /tmp/dev_moved.txt /tmp/dev_kept.txt > /tmp/dev_accounted.txt
+
+# Show any gaps
+comm -23 /tmp/dev_all.txt /tmp/dev_accounted.txt
+```
+
+If any items are unaccounted for, go back and classify them. Do not consider the
+Investigate Phase complete until this check passes with no output.
+
 ### Summary of Investigate Phase outputs
 
-Running the Investigate Phase should produce exactly three artifacts:
+Running the Investigate Phase should produce exactly four artifacts:
 
 1. `~/dev/cleanup.sh` — the move script
 2. `~/dev/.delete/NOTES.md` — terse deletion reasons
 3. `~/dev/.review/NOTES.md` — detailed review context
+4. `~/dev/NOTES.md` — kept items with reasons
 
 After the Investigate Phase, the user will review and possibly edit these files,
 then run `cleanup.sh`. The Investigate Phase may be repeated if the user makes
@@ -202,14 +253,21 @@ Present the item to the user with its notes from `NOTES.md`, then ask:
 **`dirname/`** — [one-line summary from notes]
 [key details: dirty state, unpushed commits, etc.]
 
-delete / open / archive / skip ?
+archive / delete / keep / next / shell / edit / web ?
 ```
 
-Only treat the response as a menu choice if it is exactly one of the words
-`delete`, `open`, `archive`, or `skip` (case-insensitive, possibly abbreviated
-to a single letter only if it's the entire message). Anything else is a
-freeform question or instruction — handle it normally, then re-present the
-choice menu afterward.
+If the item has an upstream remote, also offer `web` in the prompt. Derive the
+HTTPS URL from the remote (convert `ssh://git@github.com/org/repo` or
+`git@github.com:org/repo` to `https://github.com/org/repo`).
+
+Only treat the response as a menu choice if it matches one of the valid choices
+(case-insensitive). Abbreviations are allowed only when unambiguous:
+- `a` → archive, `d` → delete, `k` → keep, `n` → next, `e` → edit, `w` → web
+- `s` or `sh` → shell
+- Full words always accepted: `archive`, `delete`, `keep`, `next`, `shell`, `edit`, `web`
+
+Anything else is a freeform question or instruction — handle it normally, then
+re-present the choice menu afterward.
 
 Handle the user's choice using `dev_review/review_action.sh`:
 
@@ -218,19 +276,51 @@ Handle the user's choice using `dev_review/review_action.sh`:
   dev_review/review_action.sh delete dirname "approved by user"
   ```
 
-- **open:** Open in VS Code and wait for it to close, then ask again.
+- **edit:** Open in VS Code with the repo folder plus all dirty files as tabs,
+  then wait for it to close, then ask again.
   ```
-  code -w ~/dev/.review/dirname
+  dir=~/dev/.review/dirname
+  cd "$dir" && code -n -w . $(
+    { git status --short | awk '{print $2}';
+      git diff "@{upstream}..HEAD" --name-only 2>/dev/null; } | sort -u
+  )
   ```
+  For non-git items, just open the directory: `code -n -w ~/dev/.review/dirname`
   After the editor closes, re-present the same item and ask for a decision
-  (delete / archive / skip). Do not offer "open" again.
+  (delete / archive / next). Do not offer "edit" again.
+
+- **web:** Open the upstream remote in the browser (GitHub/GitLab), then
+  re-present the choice menu.
+  ```
+  open https://github.com/org/repo
+  ```
+
+- **shell:** Open a new iTerm2 tab in the item's directory via AppleScript,
+  then re-present the choice menu.
+  ```
+  osascript -e '
+  tell application "iTerm2"
+    tell current window
+      create tab with default profile
+      tell current session of current tab
+        write text "cd ~/dev/.review/dirname"
+      end tell
+    end tell
+  end tell'
+  ```
+
+- **keep:** Move back to `~/dev/` and add an entry to `~/dev/NOTES.md`.
+  ```
+  mv ~/dev/.review/dirname ~/dev/
+  ```
+  Then append to `~/dev/NOTES.md`: `- \`dirname/\` — [one-line reason for keeping]`
 
 - **archive:** Move to `~/dev/.archive/` for long-term storage.
   ```
   dev_review/review_action.sh archive dirname "archived by user"
   ```
 
-- **skip:** Leave it in `.review/` and move on. No action needed.
+- **next:** Leave it in `.review/` and move on. No action needed.
 
 The user may also:
 - Ask questions about the item — investigate on the fly (read files, check git
@@ -240,5 +330,5 @@ The user may also:
 
 ### After all items
 
-Report a summary: how many deleted, archived, skipped. Note any items still
+Report a summary: how many deleted, archived, skipped/nexted. Note any items still
 remaining in `.review/` for future sessions.
