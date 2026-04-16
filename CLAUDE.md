@@ -271,10 +271,18 @@ re-present the choice menu afterward.
 
 Handle the user's choice using `dev_review/review_action.sh`:
 
+**After every action that moves an item, keep the NOTES.md files in sync:**
+- Remove the item's entry from `~/.review/NOTES.md`
+- Add an entry to the destination's NOTES.md:
+  - `~/.delete/NOTES.md` for delete
+  - `~/.archive/NOTES.md` for archive
+  - `~/dev/NOTES.md` for keep
+
 - **delete:** Move to `~/dev/.delete/` and log the decision.
   ```
   dev_review/review_action.sh delete dirname "approved by user"
   ```
+  Then remove from `.review/NOTES.md` and add a terse line to `.delete/NOTES.md`.
 
 - **edit:** Open in VS Code with the repo folder plus all dirty files as tabs,
   then wait for it to close, then ask again.
@@ -313,12 +321,14 @@ Handle the user's choice using `dev_review/review_action.sh`:
   ```
   mv ~/dev/.review/dirname ~/dev/
   ```
-  Then append to `~/dev/NOTES.md`: `- \`dirname/\` — [one-line reason for keeping]`
+  Then remove from `.review/NOTES.md` and append to `~/dev/NOTES.md`:
+  `- \`dirname/\` — [one-line reason for keeping]`
 
 - **archive:** Move to `~/dev/.archive/` for long-term storage.
   ```
   dev_review/review_action.sh archive dirname "archived by user"
   ```
+  Then remove from `.review/NOTES.md` and add a terse line to `.archive/NOTES.md`.
 
 - **next:** Leave it in `.review/` and move on. No action needed.
 
@@ -332,3 +342,53 @@ The user may also:
 
 Report a summary: how many deleted, archived, skipped/nexted. Note any items still
 remaining in `.review/` for future sessions.
+
+---
+
+## Cleanup Phase
+
+The Cleanup Phase runs after the Review Phase is complete. It ties up loose ends
+and prompts the user to perform the irreversible cleanup actions.
+
+### Step 1: Verify `.review/` is empty
+
+Check that `~/dev/.review/` contains nothing except `NOTES.md` (which should
+itself be empty — no item entries remaining):
+
+```bash
+ls ~/dev/.review/
+```
+
+If any items remain (other than `NOTES.md`), note them for the user — they were
+skipped during review and should be addressed before finalizing. If the directory
+is empty aside from `NOTES.md`, prompt the user:
+
+> `.review/` is clear. You can delete it:
+> ```
+> rm -rf ~/dev/.review
+> ```
+
+### Step 2: Prompt to delete `.delete/`
+
+Remind the user to review `.delete/NOTES.md` one last time, then permanently
+remove everything:
+
+> Ready to permanently delete all items in `.delete/`? Run:
+> ```
+> rm -rf ~/dev/.delete
+> ```
+
+### Step 3: Verify NOTES.md files are consistent
+
+Check that each NOTES.md is consistent with the actual contents of its directory:
+
+- **`~/dev/NOTES.md`** — every item listed should exist in `~/dev/`; every
+  non-hidden, non-symlink item in `~/dev/` (except `dev_review/`) should have
+  an entry.
+- **`~/dev/.archive/NOTES.md`** — every item listed should exist in
+  `~/dev/.archive/`; every item in `~/dev/.archive/` should be listed.
+
+To check, list the actual directory contents and compare against the NOTES.md
+entries. Report any discrepancies (missing entries or stale entries pointing to
+items that no longer exist) and fix them before declaring the Finalize Phase
+complete.
