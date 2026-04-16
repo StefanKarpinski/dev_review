@@ -180,15 +180,17 @@ script and starts moving items in.
 ### Step 6: Generate `NOTES.md`
 
 Write `~/dev/NOTES.md` with one line per item that is being **kept** in place
-(i.e. not moved to `.delete/` or `.review/`). Each line should give the reason
-it's being kept. Format:
+(i.e. not moved to `.delete/` or `.review/`). Each line should give a brief
+description of what the item is and link to its upstream repo or project
+website where applicable. Do not record transient state like last commit date
+or branch — that goes stale quickly. Format:
 
 ```markdown
 # Kept Items
 
-- `dirname/` — active: last commit 2026-04-13, on branch sk/feature
-- `other/` — active: JuliaComputing work repo, last commit 2025-09-23
-- `dev_review/` — cleanup tooling (never move)
+- `dirname/` — brief description of what it is ([upstream](https://github.com/org/repo))
+- `other/` — brief description ([project site](https://example.com))
+- `dev_review/` — cleanup tooling for ~/dev (no upstream)
 ```
 
 This serves as both documentation and a completeness check (see Step 7).
@@ -380,7 +382,8 @@ Check that each NOTES.md is consistent with the actual contents of its directory
 
 - **`~/dev/NOTES.md`** — every item listed should exist in `~/dev/`; every
   non-hidden, non-symlink item in `~/dev/` (except `dev_review/`) should have
-  an entry.
+  an entry. Each entry should describe what the item is and link to its upstream
+  — not record transient state like commit dates or branch names.
 - **`~/dev/.archive/NOTES.md`** — every item listed should exist in
   `~/dev/.archive/`; every item in `~/dev/.archive/` should be listed.
 
